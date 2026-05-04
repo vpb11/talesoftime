@@ -23,8 +23,8 @@
                     {% for entry in inventory %}
                     <tr>
                         <td><strong>{{ entry.item_name }}</strong></td>
-                        <td>{{ entry.item_type }}</td>
-                        <td><span class="badge badge-rarity rarity-{{ entry.rarity | lower }}">{{ entry.rarity }}</span></td>
+                        <td><span class="badge badge-type type-{{ entry.item_type | lower | replace(' ', '-') }}">{{ entry.item_type }}</span></td>
+                        <td><span class="badge badge-rarity rarity-{{ entry.rarity | lower | replace(' ', '-') }}">{{ entry.rarity }}</span></td>
                         <td>{{ entry.quantity }}</td>
                         <td>
                             <form method="POST" action="{{ url_for('main.inventory_remove', inventory_id=entry.inventory_id) }}">

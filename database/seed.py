@@ -1,12 +1,10 @@
-import sys
+﻿import sys
 import os
 from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from models.models import get_db, init_db
-
-#Lookup / Reference data
 
 LOOKUP_SEED_DATA = {
     "CharacterClass": [
@@ -24,6 +22,7 @@ LOOKUP_SEED_DATA = {
     "ItemType": [
         {"TypeName": "Weapon"},
         {"TypeName": "Consumable"},
+        {"TypeName": "Miscellaneous"},
     ],
     "Rarity": [
         {"RarityName": "common"},
@@ -41,6 +40,11 @@ LOOKUP_SEED_DATA = {
         {"DifficultyName": "Novice"},
         {"DifficultyName": "Confident"},
         {"DifficultyName": "Pro"},
+    ],
+    "RewardType": [
+        {"TypeName": "Gold"},
+        {"TypeName": "XP"},
+        {"TypeName": "Item"},
     ],
 }
 
@@ -65,7 +69,7 @@ def seed_lookup_tables():
 
 def seed_core_data():
     with get_db() as conn:
-        # ── Lookup helpers ──────────────────────────────────────────────────
+        #load lookup IDs for foreign key mapping
         classes    = {r["ClassName"]:     r for r in conn.execute("SELECT * FROM CharacterClass").fetchall()}
         species    = {r["SpeciesName"]:   r for r in conn.execute("SELECT * FROM Species").fetchall()}
         alignments = {r["AlignmentName"]: r for r in conn.execute("SELECT * FROM Alignment").fetchall()}
@@ -74,7 +78,7 @@ def seed_core_data():
         regions    = {r["RegionName"]:    r for r in conn.execute("SELECT * FROM Region").fetchall()}
         difficulties = {r["DifficultyName"]: r for r in conn.execute("SELECT * FROM Difficulty").fetchall()}
 
-        # ── Characters ──────────────────────────────────────────────────────
+        #Characters
         character_rows = [
             {
                 "CharacterName": "Thorin Ironblade",
@@ -101,17 +105,16 @@ def seed_core_data():
 
         character_map = {c["CharacterName"]: c for c in characters}
 
-        # ── Items ───────────────────────────────────────────────────────────
-        item_rows = [
-            {
-                "ItemName":   "Iron Sword",
-                "ItemTypeID": item_types["Weapon"]["ItemTypeID"],
-                "RarityID":   rarities["Common"]["RarityID"],
-            },
-        ]
-
+        #Items
         items = []
         if conn.execute("SELECT COUNT(*) FROM Item").fetchone()[0] == 0:
+            item_rows = [
+                {
+                    "ItemName":   "Iron Sword",
+                    "ItemTypeID": item_types["Weapon"]["ItemTypeID"],
+                    "RarityID":   rarities["common"]["RarityID"],
+                },
+            ]
             for row in item_rows:
                 cursor = conn.execute("""
                     INSERT INTO Item (ItemName, ItemTypeID, RarityID)
@@ -126,7 +129,7 @@ def seed_core_data():
 
         item_map = {i["ItemName"]: i for i in items}
 
-        # ── Quests ──────────────────────────────────────────────────────────
+        #Quests
         quest_rows = [
             {
                 "QuestName":    "Defend the Vale",
@@ -151,16 +154,66 @@ def seed_core_data():
 
         quest_map = {q["QuestName"]: q for q in quests}
 
-        # ── Inventory ───────────────────────────────────────────────────────
-        inventory_rows = [
+        #Rewards
+        reward_types = {r["TypeName"]: r for r in conn.execute("SELECT * FROM RewardType").fetchall()}
+
+        reward_rows = [
             {
-                "CharacterID": character_map["Thorin Ironblade"]["CharacterID"],
-                "ItemID":      item_map["Iron Sword"]["ItemID"],
-                "Quantity":    1,
+                "RewardName":   "100 Gold Coins",
+                "RewardTypeID": reward_types["Gold"]["RewardTypeID"],
+                "Value":        100,
+                "ItemID":       None,
+            },
+            {
+                "RewardName":   "250 Experience Points",
+                "RewardTypeID": reward_types["XP"]["RewardTypeID"],
+                "Value":        250,
+                "ItemID":       None,
             },
         ]
 
+        rewards = []
+        if conn.execute("SELECT COUNT(*) FROM Reward").fetchone()[0] == 0:
+            for row in reward_rows:
+                cursor = conn.execute("""
+                    INSERT INTO Reward (RewardName, RewardTypeID, Value, ItemID)
+                    VALUES (?, ?, ?, ?)
+                """, (row["RewardName"], row["RewardTypeID"], row["Value"], row["ItemID"]))
+                rewards.append({"RewardName": row["RewardName"], "RewardID": cursor.lastrowid})
+            conn.commit()
+            print("  + Seeded Reward")
+        else:
+            rewards = [dict(r) for r in conn.execute("SELECT RewardID, RewardName FROM Reward").fetchall()]
+            print("  - Skipped Reward (already has data)")
+
+        reward_map = {r["RewardName"]: r for r in rewards}
+
+        #QuestRewards
+        quest_reward_rows = [
+            {"QuestID": quest_map["Defend the Vale"]["QuestID"], "RewardID": reward_map["100 Gold Coins"]["RewardID"]},
+            {"QuestID": quest_map["Defend the Vale"]["QuestID"], "RewardID": reward_map["250 Experience Points"]["RewardID"]},
+        ]
+
+        if conn.execute("SELECT COUNT(*) FROM QuestReward").fetchone()[0] == 0:
+            for row in quest_reward_rows:
+                conn.execute("""
+                    INSERT INTO QuestReward (QuestID, RewardID)
+                    VALUES (?, ?)
+                """, (row["QuestID"], row["RewardID"]))
+            conn.commit()
+            print("  + Seeded QuestReward")
+        else:
+            print("  - Skipped QuestReward (already has data)")
+
+        #Inventory
         if conn.execute("SELECT COUNT(*) FROM Inventory").fetchone()[0] == 0:
+            inventory_rows = [
+                {
+                    "CharacterID": character_map["Thorin Ironblade"]["CharacterID"],
+                    "ItemID":      item_map["Iron Sword"]["ItemID"],
+                    "Quantity":    1,
+                },
+            ]
             for row in inventory_rows:
                 conn.execute("""
                     INSERT INTO Inventory (CharacterID, ItemID, Quantity)
@@ -171,16 +224,15 @@ def seed_core_data():
         else:
             print("  - Skipped Inventory (already has data)")
 
-        # ── CharacterQuest ──────────────────────────────────────────────────
-        character_quest_rows = [
-            {
-                "CharacterID":    character_map["Thorin Ironblade"]["CharacterID"],
-                "QuestID":        quest_map["Defend the Vale"]["QuestID"],
-                "CompletionDate": datetime(2026, 1, 12, 14, 30).isoformat(),
-            },
-        ]
-
+        #CharacterQuest
         if conn.execute("SELECT COUNT(*) FROM CharacterQuest").fetchone()[0] == 0:
+            character_quest_rows = [
+                {
+                    "CharacterID":    character_map["Thorin Ironblade"]["CharacterID"],
+                    "QuestID":        quest_map["Defend the Vale"]["QuestID"],
+                    "CompletionDate": datetime(2026, 1, 12, 14, 30).isoformat(),
+                },
+            ]
             for row in character_quest_rows:
                 conn.execute("""
                     INSERT INTO CharacterQuest (CharacterID, QuestID, CompletionDate)

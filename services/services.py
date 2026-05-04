@@ -1,14 +1,9 @@
-"""
-services.py - Service layer for Tales of Time (raw SQL version).
-
-Services orchestrate repositories and construct ViewModels.
-The only change from the ORM version: from_model() → from_row(),
-and form_data passes sqlite3.Row objects instead of ORM instances.
-"""
+#orchestrates repositories and builds viewmodels
 
 from repositories.repositories import (
     CharacterRepository, ItemRepository, QuestRepository,
     InventoryRepository, CharacterQuestRepository, LookupRepository,
+    RewardRepository, QuestRewardRepository,
 )
 from viewmodels.viewmodels import (
     CharacterListViewModel, CharacterFormViewModel, CharacterViewModel,
@@ -16,6 +11,7 @@ from viewmodels.viewmodels import (
     QuestListViewModel, QuestFormViewModel, QuestViewModel,
     InventoryEntryViewModel, CharacterQuestViewModel,
     DashboardViewModel,
+    RewardListViewModel, RewardFormViewModel, RewardViewModel, QuestRewardViewModel,
 )
 
 
@@ -77,6 +73,9 @@ class QuestService:
     def list_quests(self) -> QuestListViewModel:
         return QuestListViewModel.from_rows(self._repo.get_all())
 
+    def get_quest(self, quest_id: int) -> QuestViewModel:
+        return QuestViewModel.from_row(self._repo.get_by_id(quest_id))
+
     def get_form_data(self) -> QuestFormViewModel:
         return QuestFormViewModel(
             regions      = self._lookup.get_regions(),
@@ -128,15 +127,57 @@ class QuestProgressService:
         self._cq_repo.complete(cq_id)
 
 
+class RewardService:
+    def __init__(self):
+        self._repo   = RewardRepository()
+        self._lookup = LookupRepository()
+
+    def list_rewards(self) -> RewardListViewModel:
+        return RewardListViewModel.from_rows(self._repo.get_all())
+
+    def get_form_data(self) -> RewardFormViewModel:
+        return RewardFormViewModel(
+            reward_types = self._lookup.get_reward_types(),
+            items        = ItemRepository().get_all(),
+        )
+
+    def create_reward(self, form_data: dict) -> None:
+        self._repo.create(form_data)
+
+    def delete_reward(self, reward_id: int) -> None:
+        self._repo.delete(reward_id)
+
+
+class QuestRewardService:
+    def __init__(self):
+        self._qr_repo     = QuestRewardRepository()
+        self._reward_repo = RewardRepository()
+
+    def get_quest_rewards(self, quest_id: int) -> list:
+        rows = self._qr_repo.get_for_quest(quest_id)
+        return [QuestRewardViewModel.from_row(r) for r in rows]
+
+    def available_rewards(self) -> list:
+        return self._reward_repo.get_all()
+
+    def add_reward(self, quest_id: int, reward_id: int) -> None:
+        self._qr_repo.add(quest_id, reward_id)
+
+    def remove_reward(self, qr_id: int) -> None:
+        self._qr_repo.remove(qr_id)
+
+
 class DashboardService:
     def __init__(self):
-        self._char_repo  = CharacterRepository()
-        self._item_repo  = ItemRepository()
-        self._quest_repo = QuestRepository()
+        self._char_repo   = CharacterRepository()
+        self._item_repo   = ItemRepository()
+        self._quest_repo  = QuestRepository()
+        self._reward_repo = RewardRepository()
 
     def get_dashboard(self) -> DashboardViewModel:
         return DashboardViewModel(
             total_characters = self._char_repo.count(),
             total_items      = self._item_repo.count(),
             total_quests     = self._quest_repo.count(),
+            total_rewards    = self._reward_repo.count(),
         )

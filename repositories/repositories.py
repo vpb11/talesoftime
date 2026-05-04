@@ -1,27 +1,15 @@
-"""
-repositories.py - Raw SQL data-access layer for Tales of Time.
-
-Each repository class is responsible for one entity's persistence.
-All SQL is parameterised (? placeholders) - never string-formatted -
-which prevents SQL injection.
-
-JOIN queries are written explicitly here so the service and view layers
-never need to know about foreign keys or table relationships.
-"""
+﻿#all SQL lives here, joins stay out of services and views
 
 from models.models import get_db
 from flask import abort
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
 def _fetchone_or_404(conn, sql: str, params: tuple = ()):
-    """Execute sql, return the row, or abort with 404 if not found."""
     row = conn.execute(sql, params).fetchone()
     if row is None:
         abort(404)
     return row
 
-# ── Character ──────────────────────────────────────────────────────────────────
+#Character
 
 class CharacterRepository:
 
@@ -66,7 +54,6 @@ class CharacterRepository:
             """, (character_id,))
 
     def create(self, data: dict) -> int:
-        """Insert a new character and return the new CharacterID."""
         with get_db() as conn:
             cursor = conn.execute("""
                 INSERT INTO Character (CharacterName, ClassID, SpeciesID, AlignmentID, Level)
@@ -116,7 +103,7 @@ class CharacterRepository:
             ).fetchone()[0]
 
 
-# ── Item ───────────────────────────────────────────────────────────────────────
+#Item
 
 class ItemRepository:
 
@@ -171,7 +158,7 @@ class ItemRepository:
             return conn.execute("SELECT COUNT(*) FROM Item").fetchone()[0]
 
 
-# ── Quest ──────────────────────────────────────────────────────────────────────
+#Quest
 
 class QuestRepository:
 
@@ -226,7 +213,7 @@ class QuestRepository:
             return conn.execute("SELECT COUNT(*) FROM Quest").fetchone()[0]
 
 
-# ── Inventory ──────────────────────────────────────────────────────────────────
+#Inventory
 
 class InventoryRepository:
 
@@ -257,7 +244,7 @@ class InventoryRepository:
             )
 
     def add_item(self, character_id: int, item_id: int, quantity: int = 1):
-        """Stack quantity if the item already exists, otherwise insert."""
+        #stack if already in inventory, else insert
         with get_db() as conn:
             existing = conn.execute("""
                 SELECT InventoryID, Quantity
@@ -288,7 +275,7 @@ class InventoryRepository:
             conn.commit()
 
 
-# ── CharacterQuest ─────────────────────────────────────────────────────────────
+#CharacterQuest
 
 class CharacterQuestRepository:
 
@@ -337,10 +324,9 @@ class CharacterQuestRepository:
             conn.commit()
 
 
-# ── Lookup (read-only reference tables) ───────────────────────────────────────
+#Lookup
 
 class LookupRepository:
-    """Provides read access to all seven reference / lookup tables."""
 
     def get_classes(self) -> list:
         with get_db() as conn:
@@ -383,3 +369,112 @@ class LookupRepository:
             return conn.execute(
                 "SELECT DifficultyID, DifficultyName FROM Difficulty ORDER BY DifficultyID"
             ).fetchall()
+
+    def get_reward_types(self) -> list:
+        with get_db() as conn:
+            return conn.execute(
+                "SELECT RewardTypeID, TypeName FROM RewardType ORDER BY TypeName"
+            ).fetchall()
+
+
+#Reward
+
+class RewardRepository:
+
+    def get_all(self) -> list:
+        with get_db() as conn:
+            return conn.execute("""
+                SELECT
+                    r.RewardID,
+                    r.RewardName,
+                    r.Value,
+                    r.ItemID,
+                    rt.RewardTypeID,
+                    rt.TypeName,
+                    i.ItemName
+                FROM Reward r
+                JOIN RewardType rt ON r.RewardTypeID = rt.RewardTypeID
+                LEFT JOIN Item  i  ON r.ItemID       = i.ItemID
+                ORDER BY rt.TypeName, r.RewardName
+            """).fetchall()
+
+    def get_by_id(self, reward_id: int):
+        with get_db() as conn:
+            return _fetchone_or_404(conn, """
+                SELECT
+                    r.RewardID,
+                    r.RewardName,
+                    r.Value,
+                    r.ItemID,
+                    rt.RewardTypeID,
+                    rt.TypeName,
+                    i.ItemName
+                FROM Reward r
+                JOIN RewardType rt ON r.RewardTypeID = rt.RewardTypeID
+                LEFT JOIN Item  i  ON r.ItemID       = i.ItemID
+                WHERE r.RewardID = ?
+            """, (reward_id,))
+
+    def create(self, data: dict) -> int:
+        with get_db() as conn:
+            cursor = conn.execute("""
+                INSERT INTO Reward (RewardName, RewardTypeID, Value, ItemID)
+                VALUES (?, ?, ?, ?)
+            """, (data["RewardName"], data["RewardTypeID"], data.get("Value"), data.get("ItemID")))
+            conn.commit()
+            return cursor.lastrowid
+
+    def delete(self, reward_id: int) -> None:
+        with get_db() as conn:
+            conn.execute("DELETE FROM Reward WHERE RewardID = ?", (reward_id,))
+            conn.commit()
+
+    def count(self) -> int:
+        with get_db() as conn:
+            return conn.execute("SELECT COUNT(*) FROM Reward").fetchone()[0]
+
+
+#QuestReward
+
+class QuestRewardRepository:
+
+    def get_for_quest(self, quest_id: int) -> list:
+        with get_db() as conn:
+            return conn.execute("""
+                SELECT
+                    qr.QuestRewardID,
+                    qr.QuestID,
+                    r.RewardID,
+                    r.RewardName,
+                    r.Value,
+                    rt.TypeName,
+                    i.ItemName
+                FROM QuestReward qr
+                JOIN Reward     r  ON qr.RewardID    = r.RewardID
+                JOIN RewardType rt ON r.RewardTypeID = rt.RewardTypeID
+                LEFT JOIN Item  i  ON r.ItemID       = i.ItemID
+                WHERE qr.QuestID = ?
+                ORDER BY rt.TypeName, r.RewardName
+            """, (quest_id,)).fetchall()
+
+    def get_by_id(self, qr_id: int):
+        with get_db() as conn:
+            return _fetchone_or_404(
+                conn,
+                "SELECT * FROM QuestReward WHERE QuestRewardID = ?",
+                (qr_id,)
+            )
+
+    def add(self, quest_id: int, reward_id: int) -> int:
+        with get_db() as conn:
+            cursor = conn.execute("""
+                INSERT INTO QuestReward (QuestID, RewardID)
+                VALUES (?, ?)
+            """, (quest_id, reward_id))
+            conn.commit()
+            return cursor.lastrowid
+
+    def remove(self, qr_id: int) -> None:
+        with get_db() as conn:
+            conn.execute("DELETE FROM QuestReward WHERE QuestRewardID = ?", (qr_id,))
+            conn.commit()

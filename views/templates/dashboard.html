@@ -26,6 +26,12 @@
         <div class="stat-label">Quests</div>
         <a href="{{ url_for('main.quest_list') }}" class="btn btn-sm btn-primary">Manage</a>
     </div>
+    <div class="stat-card">
+        <div class="stat-icon">🎁</div>
+        <div class="stat-value">{{ vm.total_rewards }}</div>
+        <div class="stat-label">Rewards</div>
+        <a href="{{ url_for('main.reward_list') }}" class="btn btn-sm btn-primary">Manage</a>
+    </div>
 </div>
 
 <div class="quick-links">
@@ -42,6 +48,10 @@
         <a href="{{ url_for('main.quest_create') }}" class="action-card">
             <span class="action-icon">➕</span>
             <span>New Quest</span>
+        </a>
+        <a href="{{ url_for('main.reward_create') }}" class="action-card">
+            <span class="action-icon">➕</span>
+            <span>New Reward</span>
         </a>
     </div>
 </div>

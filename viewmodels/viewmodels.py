@@ -1,16 +1,10 @@
-"""
-viewmodels.py - ViewModel layer for Tales of Time.
-
-Transforms sqlite3.Row objects (dict-like) into plain dataclasses
-that templates consume. Access pattern changes from ORM attribute
-access (row.ColumnName) to key access (row["ColumnName"]).
-"""
+﻿#converts sqlite3 rows into dataclasses for templates
 
 from dataclasses import dataclass, field
 from typing import List, Optional
 
 
-# ── Character ──────────────────────────────────────────────────────────────────
+#Character
 
 @dataclass
 class CharacterViewModel:
@@ -46,14 +40,13 @@ class CharacterListViewModel:
 
 @dataclass
 class CharacterFormViewModel:
-    """Carries dropdown options for the create / edit form."""
     classes:    list = field(default_factory=list)
     species:    list = field(default_factory=list)
     alignments: list = field(default_factory=list)
-    character:  Optional[object] = None   # None = create mode, Row = edit mode
+    character:  Optional[object] = None   #None means create mode
 
 
-# ── Item ───────────────────────────────────────────────────────────────────────
+#Item
 
 @dataclass
 class ItemViewModel:
@@ -89,7 +82,7 @@ class ItemFormViewModel:
     rarities:   list = field(default_factory=list)
 
 
-# ── Quest ──────────────────────────────────────────────────────────────────────
+#Quest
 
 @dataclass
 class QuestViewModel:
@@ -125,7 +118,7 @@ class QuestFormViewModel:
     difficulties: list = field(default_factory=list)
 
 
-# ── Inventory ──────────────────────────────────────────────────────────────────
+#Inventory
 
 @dataclass
 class InventoryEntryViewModel:
@@ -146,7 +139,7 @@ class InventoryEntryViewModel:
         )
 
 
-# ── CharacterQuest ─────────────────────────────────────────────────────────────
+#CharacterQuest
 
 @dataclass
 class CharacterQuestViewModel:
@@ -171,10 +164,78 @@ class CharacterQuestViewModel:
         )
 
 
-# ── Dashboard ──────────────────────────────────────────────────────────────────
+#Dashboard
 
 @dataclass
 class DashboardViewModel:
     total_characters: int = 0
     total_items:      int = 0
     total_quests:     int = 0
+    total_rewards:    int = 0
+
+
+#Reward
+
+@dataclass
+class RewardViewModel:
+    reward_id:   int
+    name:        str
+    reward_type: str
+    value:       Optional[int]
+    item_name:   Optional[str]
+
+    @classmethod
+    def from_row(cls, row) -> "RewardViewModel":
+        return cls(
+            reward_id   = row["RewardID"],
+            name        = row["RewardName"],
+            reward_type = row["TypeName"],
+            value       = row["Value"],
+            item_name   = row["ItemName"],
+        )
+
+    @property
+    def display(self) -> str:
+        if self.reward_type == "Gold":
+            return f"{self.value} Gold"
+        if self.reward_type == "XP":
+            return f"{self.value} XP"
+        return self.item_name or self.name
+
+
+@dataclass
+class RewardListViewModel:
+    rewards: List[RewardViewModel] = field(default_factory=list)
+    total:   int = 0
+
+    @classmethod
+    def from_rows(cls, rows) -> "RewardListViewModel":
+        vms = [RewardViewModel.from_row(r) for r in rows]
+        return cls(rewards=vms, total=len(vms))
+
+
+@dataclass
+class RewardFormViewModel:
+    reward_types: list = field(default_factory=list)
+    items:        list = field(default_factory=list)
+
+
+@dataclass
+class QuestRewardViewModel:
+    qr_id:       int
+    reward_id:   int
+    reward_name: str
+    reward_type: str
+    value:       Optional[int]
+    item_name:   Optional[str]
+
+    @classmethod
+    def from_row(cls, row) -> "QuestRewardViewModel":
+        return cls(
+            qr_id       = row["QuestRewardID"],
+            reward_id   = row["RewardID"],
+            reward_name = row["RewardName"],
+            reward_type = row["TypeName"],
+            value       = row["Value"],
+            item_name   = row["ItemName"],
+        )

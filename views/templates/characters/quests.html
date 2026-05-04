@@ -23,8 +23,8 @@
                     {% for cq in character_quests %}
                     <tr class="{{ 'row-complete' if cq.is_complete else '' }}">
                         <td><strong>{{ cq.quest_name }}</strong></td>
-                        <td>{{ cq.region }}</td>
-                        <td><span class="badge badge-difficulty">{{ cq.difficulty }}</span></td>
+                        <td><span class="badge badge-region region-{{ cq.region | lower | replace(' ', '-') }}">{{ cq.region }}</span></td>
+                        <td><span class="badge badge-difficulty difficulty-{{ cq.difficulty | lower | replace(' ', '-') }}">{{ cq.difficulty }}</span></td>
                         <td>
                             {% if cq.is_complete %}
                                 <span class="badge badge-success">✔ {{ cq.completion_date }}</span>

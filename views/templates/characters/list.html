@@ -27,9 +27,9 @@
             {% for c in vm.characters %}
             <tr>
                 <td><strong>{{ c.name }}</strong></td>
-                <td><span class="badge badge-class">{{ c.character_class }}</span></td>
-                <td>{{ c.species }}</td>
-                <td><span class="badge badge-alignment">{{ c.alignment }}</span></td>
+                <td><span class="badge badge-class class-{{ c.character_class | lower | replace(' ', '-') }}">{{ c.character_class }}</span></td>
+                <td><span class="badge badge-species species-{{ c.species | lower | replace(' ', '-') }}">{{ c.species }}</span></td>
+                <td><span class="badge badge-alignment alignment-{{ c.alignment | lower | replace(' ', '-') }}">{{ c.alignment }}</span></td>
                 <td>
                     <span class="level-badge">Lv {{ c.level }}</span>
                 </td>

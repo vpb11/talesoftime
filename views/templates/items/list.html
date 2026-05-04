@@ -20,8 +20,8 @@
             {% for item in vm.items %}
             <tr>
                 <td><strong>{{ item.name }}</strong></td>
-                <td><span class="badge badge-class">{{ item.item_type }}</span></td>
-                <td><span class="badge badge-rarity rarity-{{ item.rarity | lower }}">{{ item.rarity }}</span></td>
+                <td><span class="badge badge-type type-{{ item.item_type | lower | replace(' ', '-') }}">{{ item.item_type }}</span></td>
+                <td><span class="badge badge-rarity rarity-{{ item.rarity | lower | replace(' ', '-') }}">{{ item.rarity }}</span></td>
                 <td class="actions">
                     <form method="POST" action="{{ url_for('main.item_delete', item_id=item.item_id) }}" style="display:inline" onsubmit="return confirm('Delete {{ item.name }}?')">
                         <button type="submit" class="btn btn-sm btn-danger">🗑 Delete</button>

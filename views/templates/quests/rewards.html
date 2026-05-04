@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ quest.name }} - Rewards{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🎁 {{ quest.name }}</h1>
+        <p class="subtitle">
+            <span class="badge badge-region region-{{ quest.region | lower | replace(' ', '-') }}">{{ quest.region }}</span>
+            <span class="badge badge-difficulty difficulty-{{ quest.difficulty | lower | replace(' ', '-') }}">{{ quest.difficulty }}</span>
+        </p>
+    </div>
+    <a href="{{ url_for('main.quest_list') }}" class="btn btn-secondary">← Quests</a>
+</div>
+
+<div class="two-col">
+    <section>
+        <h2>Rewards</h2>
+        {% if quest_rewards %}
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Reward</th><th>Type</th><th>Value / Item</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for qr in quest_rewards %}
+                    <tr>
+                        <td><strong>{{ qr.reward_name }}</strong></td>
+                        <td><span class="badge badge-reward-type reward-type-{{ qr.reward_type | lower }}">{{ qr.reward_type }}</span></td>
+                        <td>
+                            {% if qr.reward_type == 'Item' %}
+                                {{ qr.item_name }}
+                            {% else %}
+                                {{ qr.value }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('main.quest_reward_remove', qr_id=qr.qr_id) }}">
+                                <button class="btn btn-sm btn-danger">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">No rewards attached to this quest yet.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2>Add Reward</h2>
+        <div class="form-card">
+            <form method="POST" action="{{ url_for('main.quest_reward_add', quest_id=quest.quest_id) }}">
+                <div class="form-group">
+                    <label for="RewardID">Reward</label>
+                    <select name="RewardID" id="RewardID" class="form-control" required>
+                        {% for r in rewards %}
+                        <option value="{{ r['RewardID'] }}">{{ r['RewardName'] }} ({{ r['TypeName'] }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Reward</button>
+            </form>
+        </div>
+    </section>
+</div>
+{% endblock %}

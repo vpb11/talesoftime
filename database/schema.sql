@@ -1,9 +1,8 @@
--- schema.sql - Tales of Time database schema
--- Run once to create all tables: python database/init_db.py
+﻿-- Tales of Time database schema
 
 PRAGMA foreign_keys = ON;
 
--- ── Lookup tables ─────────────────────────────────────────────────────────────
+-- Lookup tables
 
 CREATE TABLE IF NOT EXISTS CharacterClass (
     ClassID     INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,7 +40,7 @@ CREATE TABLE IF NOT EXISTS Difficulty (
     DifficultyName VARCHAR(50) NOT NULL UNIQUE
 );
 
--- ── Core entities ─────────────────────────────────────────────────────────────
+-- Core entities
 
 CREATE TABLE IF NOT EXISTS Character (
     CharacterID   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +65,7 @@ CREATE TABLE IF NOT EXISTS Quest (
     DifficultyID INTEGER NOT NULL REFERENCES Difficulty(DifficultyID)
 );
 
--- ── Join tables ───────────────────────────────────────────────────────────────
+-- Join tables
 
 CREATE TABLE IF NOT EXISTS Inventory (
     InventoryID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,4 +79,25 @@ CREATE TABLE IF NOT EXISTS CharacterQuest (
     CharacterID      INTEGER  NOT NULL REFERENCES Character(CharacterID) ON DELETE CASCADE,
     QuestID          INTEGER  NOT NULL REFERENCES Quest(QuestID),
     CompletionDate   DATETIME NULL
+);
+
+-- Rewards
+
+CREATE TABLE IF NOT EXISTS RewardType (
+    RewardTypeID INTEGER PRIMARY KEY AUTOINCREMENT,
+    TypeName     VARCHAR(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS Reward (
+    RewardID     INTEGER PRIMARY KEY AUTOINCREMENT,
+    RewardName   VARCHAR(100) NOT NULL,
+    RewardTypeID INTEGER NOT NULL REFERENCES RewardType(RewardTypeID),
+    Value        INTEGER,
+    ItemID       INTEGER REFERENCES Item(ItemID)
+);
+
+CREATE TABLE IF NOT EXISTS QuestReward (
+    QuestRewardID INTEGER PRIMARY KEY AUTOINCREMENT,
+    QuestID       INTEGER NOT NULL REFERENCES Quest(QuestID) ON DELETE CASCADE,
+    RewardID      INTEGER NOT NULL REFERENCES Reward(RewardID) ON DELETE CASCADE
 );

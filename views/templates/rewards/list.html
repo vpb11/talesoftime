@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Rewards{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🎁 Rewards</h1>
+        <p class="subtitle">{{ vm.total }} reward{{ 's' if vm.total != 1 }} defined</p>
+    </div>
+    <a href="{{ url_for('main.reward_create') }}" class="btn btn-primary">+ New Reward</a>
+</div>
+
+{% if vm.rewards %}
+<div class="table-wrapper">
+    <table class="data-table">
+        <thead>
+            <tr><th>Name</th><th>Type</th><th>Value / Item</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            {% for r in vm.rewards %}
+            <tr>
+                <td><strong>{{ r.name }}</strong></td>
+                <td><span class="badge badge-reward-type reward-type-{{ r.reward_type | lower }}">{{ r.reward_type }}</span></td>
+                <td>
+                    {% if r.reward_type == 'Item' %}
+                        {{ r.item_name }}
+                    {% else %}
+                        {{ r.value }}
+                    {% endif %}
+                </td>
+                <td class="actions">
+                    <form method="POST" action="{{ url_for('main.reward_delete', reward_id=r.reward_id) }}" style="display:inline" onsubmit="return confirm('Delete {{ r.name }}?')">
+                        <button type="submit" class="btn btn-sm btn-danger">🗑 Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <p>🎁 No rewards yet.</p>
+    <a href="{{ url_for('main.reward_create') }}" class="btn btn-primary">Create your first reward</a>
+</div>
+{% endif %}
+{% endblock %}

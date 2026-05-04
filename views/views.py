@@ -1,28 +1,26 @@
-"""
-views.py - Flask Blueprint route handlers (the View in MVVM).
-
-Routes are intentionally thin: they translate HTTP ↔ service calls
-and pass ViewModels to templates. No business logic lives here.
-"""
+﻿#thin routes that call services and pass viewmodels to templates, no business logic
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from services.services import (
     CharacterService, ItemService, QuestService,
     InventoryService, QuestProgressService, DashboardService,
+    RewardService, QuestRewardService,
 )
 
 bp = Blueprint("main", __name__)
 
-# ── Services (injected per-request - simple approach for Stage 1) ─────────────
+#new service instance per request
 def _char_svc():   return CharacterService()
 def _item_svc():   return ItemService()
 def _quest_svc():  return QuestService()
 def _inv_svc():    return InventoryService()
 def _qp_svc():     return QuestProgressService()
 def _dash_svc():   return DashboardService()
+def _reward_svc(): return RewardService()
+def _qr_svc():     return QuestRewardService()
 
 
-# ── Dashboard ─────────────────────────────────────────────────────────────────
+#Dashboard
 
 @bp.route("/")
 def dashboard():
@@ -30,7 +28,7 @@ def dashboard():
     return render_template("dashboard.html", vm=vm)
 
 
-# ── Characters ────────────────────────────────────────────────────────────────
+#Characters
 
 @bp.route("/characters")
 def character_list():
@@ -140,7 +138,7 @@ def quest_complete(cq_id):
     return redirect(url_for("main.character_quests", character_id=cid))
 
 
-# ── Items ─────────────────────────────────────────────────────────────────────
+#Items
 
 @bp.route("/items")
 def item_list():
@@ -171,7 +169,7 @@ def item_delete(item_id):
     return redirect(url_for("main.item_list"))
 
 
-# ── Quests ────────────────────────────────────────────────────────────────────
+#Quests
 
 @bp.route("/quests")
 def quest_list():
@@ -200,3 +198,63 @@ def quest_delete(quest_id):
     _quest_svc().delete_quest(quest_id)
     flash("Quest deleted.", "warning")
     return redirect(url_for("main.quest_list"))
+
+
+#Rewards
+
+@bp.route("/rewards")
+def reward_list():
+    vm = _reward_svc().list_rewards()
+    return render_template("rewards/list.html", vm=vm)
+
+
+@bp.route("/rewards/new", methods=["GET", "POST"])
+def reward_create():
+    svc = _reward_svc()
+    if request.method == "POST":
+        value_raw = request.form.get("Value", "").strip()
+        item_raw  = request.form.get("ItemID", "").strip()
+        data = {
+            "RewardName":   request.form["RewardName"],
+            "RewardTypeID": int(request.form["RewardTypeID"]),
+            "Value":        int(value_raw) if value_raw else None,
+            "ItemID":       int(item_raw)  if item_raw  else None,
+        }
+        svc.create_reward(data)
+        flash("Reward created.", "success")
+        return redirect(url_for("main.reward_list"))
+    form_vm = svc.get_form_data()
+    return render_template("rewards/form.html", form_vm=form_vm)
+
+
+@bp.route("/rewards/<int:reward_id>/delete", methods=["POST"])
+def reward_delete(reward_id):
+    _reward_svc().delete_reward(reward_id)
+    flash("Reward deleted.", "warning")
+    return redirect(url_for("main.reward_list"))
+
+
+@bp.route("/quests/<int:quest_id>/rewards")
+def quest_rewards(quest_id):
+    quest_vm = QuestService().get_quest(quest_id)
+    qr_vm    = _qr_svc().get_quest_rewards(quest_id)
+    rewards  = _qr_svc().available_rewards()
+    return render_template("quests/rewards.html", quest=quest_vm, quest_rewards=qr_vm, rewards=rewards)
+
+
+@bp.route("/quests/<int:quest_id>/rewards/add", methods=["POST"])
+def quest_reward_add(quest_id):
+    reward_id = int(request.form["RewardID"])
+    _qr_svc().add_reward(quest_id, reward_id)
+    flash("Reward added to quest.", "success")
+    return redirect(url_for("main.quest_rewards", quest_id=quest_id))
+
+
+@bp.route("/quest-rewards/<int:qr_id>/remove", methods=["POST"])
+def quest_reward_remove(qr_id):
+    from repositories.repositories import QuestRewardRepository
+    qr  = QuestRewardRepository().get_by_id(qr_id)
+    qid = qr["QuestID"]
+    _qr_svc().remove_reward(qr_id)
+    flash("Reward removed.", "warning")
+    return redirect(url_for("main.quest_rewards", quest_id=qid))

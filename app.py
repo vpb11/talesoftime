@@ -1,11 +1,8 @@
-"""
-app.py - Flask application factory for Tales of Time (raw SQL version).
-
-SQLAlchemy is no longer used. Database initialisation is handled by
-models.init_db(), which runs the raw DDL schema script.
-"""
+#Flask app factory, database set up via models.init_db()
 
 import os
+import time
+import threading
 from flask import Flask
 from models.models import init_db
 
@@ -22,11 +19,20 @@ def create_app(config_overrides: dict = None) -> Flask:
     if config_overrides:
         app.config.update(config_overrides)
 
-    # Initialise the database schema (safe to re-run - uses IF NOT EXISTS)
     init_db()
 
     from views.views import bp
     app.register_blueprint(bp)
+
+    from backup import backup_sqlite_db
+
+    def backup_loop():
+        app.app_context().push()
+        while True:
+            time.sleep(60 * 60)
+            backup_sqlite_db()
+
+    threading.Thread(target=backup_loop, daemon=True).start()
 
     return app
 
